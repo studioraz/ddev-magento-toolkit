@@ -16,8 +16,8 @@ project_files:
 
 # List of add-on names that this add-on depends on
 dependencies:
-  - redis 
-  - opensearch
+  - ddev/ddev-redis
+  - ddev/ddev-opensearch
 
 # DDEV environment variables can be interpolated into these actions.
 # post_install_actions are executed in the context of the target project's .ddev directory.
