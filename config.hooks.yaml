@@ -1,0 +1,6 @@
+hooks:
+  post-import-db:
+    - exec: bin/magento config:data:import config/store dev
+    - exec: bin/n98 admin:user:change-password studioraz qwaszx1234$
+  post-start:
+    - exec-host: '[ -f app/etc/env.php ] || ddev generate-env'

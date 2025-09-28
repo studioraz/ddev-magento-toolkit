@@ -1,0 +1,211 @@
+#!/bin/bash
+
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Generate app/etc/env.php for a Magento project in DDEV.
+## Example: "ddev generate-env --force" or "ddev generate-env --dry-run"
+## Flags: [{"Name":"force","Usage":"Override an existing env.php file"},{"Name":"dry-run","Usage":"Simulate the generation without writing the file"}]
+
+set -Eeuo pipefail
+
+echo "Generating Magento env.php configuration file"
+
+FORCE=0
+DRYRUN=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --force)  FORCE=1; shift ;;
+    --dry-run) DRYRUN=1; shift ;;
+    *) echo "Unknown option: $1"; exit 2 ;;
+  esac
+done
+
+# --- Require DDEV env vars ---
+if [[ -z "${DDEV_PROJECT:-}" ]] || [[ -z "${DDEV_APPROOT:-}" ]]; then
+  echo "ERROR: DDEV_PROJECT and DDEV_APPROOT must be set. Run via 'ddev gen-env'." >&2
+  exit 1
+fi
+
+APPROOT="$DDEV_APPROOT"
+ENV_FILE="$APPROOT/app/etc/env.php"
+
+mkdir -p "$APPROOT/app/etc"
+
+# --- Configurable values (from environment or defaults) ---
+ADMIN_URI="${ADMIN_URI:-admin}"
+MAGE_MODE_VAL="${MAGE_MODE:-developer}"
+HOSTNAME="${DDEV_PROJECT}.ddev.site"
+
+# Stable id_prefix per project (deterministic)
+if command -v md5sum >/dev/null 2>&1; then
+  ID_PREFIX="$(echo -n "$DDEV_PROJECT" | md5sum | cut -c1-3)_"
+elif command -v md5 >/dev/null 2>&1; then
+  ID_PREFIX="$(printf "%s" "$DDEV_PROJECT" | md5 | cut -c1-3)_"
+else
+  ID_PREFIX="${DDEV_PROJECT:0:3}_"
+fi
+
+# Generate/reuse crypt key
+if [[ -f "$ENV_FILE" ]]; then
+  EXISTING_KEY="$(php -r '($f=$argv[1]) && is_file($f) ? print((include $f)["crypt"]["key"] ?? "") : "";' "$ENV_FILE" 2>/dev/null || true)"
+else
+  EXISTING_KEY=""
+fi
+if [[ -n "$EXISTING_KEY" ]]; then
+  CRYPT_KEY="$EXISTING_KEY"
+else
+  if command -v openssl >/dev/null 2>&1; then
+    CRYPT_KEY="$(openssl rand -hex 16)"
+  else
+    CRYPT_KEY="$(date +%s | sha1sum | cut -c1-32)"
+  fi
+fi
+
+# Static install date (literal in file, not computed at runtime)
+INSTALL_DATE="$(date -u +"%a, %d %b %Y %H:%M:%S +0000")"
+
+# --- Compose env.php with LITERALS ---
+PHP_CONTENT="$(cat <<'PHP'
+<?php
+# ddev-description: Generated env.php from DDEV host command
+return [
+    'backend' => [
+        'frontName' => '${ADMIN_URI}'
+    ],
+    'crypt' => [
+        'key' => '${CRYPT_KEY}'
+    ],
+    'db'      => [
+        'table_prefix' => '',
+        'connection'   => [
+            'default' => [
+                'host'     => 'db',
+                'dbname'   => 'db',
+                'username' => 'db',
+                'password' => 'db',
+                'model'    => 'mysql4',
+                'engine'   => 'innodb',
+                'initStatements' => 'SET NAMES utf8;',
+                'active'   => '1'
+            ]
+        ]
+    ],
+    'resource' => [
+        'default_setup' => [
+            'connection' => 'default'
+        ]
+    ],
+    'x-frame-options' => 'SAMEORIGIN',
+    'MAGE_MODE' => '${MAGE_MODE_VAL}',
+    'session' => [
+        'save' => 'redis',
+        'redis' => [
+            'host' => 'redis',
+            'port' => '6379',
+            'password' => '',
+            'timeout' => '2.5',
+            'persistent_identifier' => '',
+            'database' => '2'
+        ]
+    ],
+    'cache' => [
+        'frontend' => [
+            'default' => [
+                'id_prefix' => '${ID_PREFIX}',
+                'backend' => 'Magento\\Framework\\Cache\\Backend\\Redis',
+                'backend_options' => [
+                    'server' => 'redis',
+                    'database' => '0',
+                    'port' => '6379'
+                ]
+            ],
+            'page_cache' => [
+                'id_prefix' => '${ID_PREFIX}',
+                'backend' => 'Magento\\Framework\\Cache\\Backend\\Redis',
+                'backend_options' => [
+                    'server' => 'redis',
+                    'database' => '1',
+                    'port' => '6379'
+                ]
+            ]
+        ]
+    ],
+    'install' => [
+        'date' => '${INSTALL_DATE}'
+    ],
+    'lock' => [
+        'provider' => 'db',
+        'config' => [
+            'prefix' => NULL
+        ]
+    ],
+    'cache_types' => [
+        'config' => 1,
+        'layout' => 1,
+        'block_html' => 1,
+        'collections' => 1,
+        'reflection' => 1,
+        'db_ddl' => 1,
+        'compiled_config' => 1,
+        'eav' => 1,
+        'customer_notification' => 1,
+        'config_integration' => 1,
+        'config_integration_api' => 1,
+        'full_page' => 1,
+        'config_webservice' => 1,
+        'translate' => 1
+    ],
+    'system' => [
+        'default' => [
+            'web' => [
+                'secure' => [
+                    'use_in_frontend' => '1',
+                    'use_in_adminhtml' => '1',
+                    'base_url' => 'https://${HOSTNAME}/'
+                ],
+                'cookie' => [
+                    'cookie_domain' => '${HOSTNAME}',
+                    'cookie_lifetime' => '108000'
+                ]
+            ],
+            'catalog' => [
+                'search' => [
+                    'engine' => 'opensearch',
+                    'opensearch_server_hostname'=> 'ddev-${DDEV_PROJECT}-opensearch',
+                    'opensearch_server_port' => '9200',
+                    'opensearch_index_prefix' => '${DDEV_PROJECT}_',
+                ]
+            ]
+        ]
+    ]
+];
+PHP
+)"
+
+# --- Substitute placeholders (pure bash, no envsubst/sed) ---
+PHP_CONTENT="${PHP_CONTENT//\$\{ADMIN_URI\}/$ADMIN_URI}"
+PHP_CONTENT="${PHP_CONTENT//\$\{CRYPT_KEY\}/$CRYPT_KEY}"
+PHP_CONTENT="${PHP_CONTENT//\$\{MAGE_MODE_VAL\}/$MAGE_MODE_VAL}"
+PHP_CONTENT="${PHP_CONTENT//\$\{ID_PREFIX\}/$ID_PREFIX}"
+PHP_CONTENT="${PHP_CONTENT//\$\{INSTALL_DATE\}/$INSTALL_DATE}"
+PHP_CONTENT="${PHP_CONTENT//\$\{HOSTNAME\}/$HOSTNAME}"
+PHP_CONTENT="${PHP_CONTENT//\$\{DDEV_PROJECT\}/$DDEV_PROJECT}"
+
+# --- Write or preview ---
+if [[ "$DRYRUN" -eq 1 ]]; then
+  echo "Would write to: $ENV_FILE"
+  echo "----------------------------------------"
+  echo "$PHP_CONTENT"
+  exit 0
+fi
+
+# Only overwrite with --force or if file missing
+if [[ -f "$ENV_FILE" && "$FORCE" -ne 1 ]]; then
+  echo "env.php already exists at $ENV_FILE"
+  echo "Use --force to overwrite."
+  exit 0
+fi
+
+printf "%s\n" "$PHP_CONTENT" > "$ENV_FILE"
+chmod 640 "$ENV_FILE" || true
+
+echo "env.php generated at $ENV_FILE"

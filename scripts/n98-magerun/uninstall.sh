@@ -1,0 +1,1 @@
+rm -f "${DDEV_APPROOT}/bin/n98" "${DDEV_APPROOT}/src/bin/n98"
