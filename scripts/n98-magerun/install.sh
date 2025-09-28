@@ -1,6 +1,6 @@
 if [ -f "${DDEV_APPROOT}/bin/n98" ]; then
     echo "n98 already installed at bin/n98"
-    exit 1
+    exit 0
 fi
 if [ -d "${DDEV_APPROOT}/src" ]; then 
     BIN_DIR="${DDEV_APPROOT}/src/bin"
