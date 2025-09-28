@@ -13,6 +13,8 @@ project_files:
   - commands/web/n98
   - commands/web/generate-env
   - config.hooks.yaml
+  - scripts/n98-magerun/install.sh
+  - scripts/n98-magerun/uninstall.sh
 
 # List of add-on names that this add-on depends on
 dependencies:
