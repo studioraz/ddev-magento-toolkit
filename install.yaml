@@ -26,7 +26,7 @@ dependencies:
 post_install_actions:
   - |
     #ddev-generated: ensure all scripts are executable
-    find scripts -type f -name "*.sh" -exec chmod +x {} \;
+    find scripts/magento-toolkit -type f -name "*.sh" -exec chmod +x {} \;
     #ddev-generated: download n98-magerun2.phar
     scripts/n98-magerun/install.sh
 
@@ -36,5 +36,5 @@ post_install_actions:
 removal_actions:
   - |
     #ddev-generated: remove n98-magerun2.phar
-    scripts/n98-magerun/uninstall.sh
+    scripts/magento-toolkit/n98-magerun/uninstall.sh
   
