@@ -25,6 +25,8 @@ dependencies:
 # post_install_actions are executed in the context of the target project's .ddev directory.
 post_install_actions:
   - |
+    #ddev-generated: ensure all scripts are executable
+    find scripts -type f -name "*.sh" -exec chmod +x {} \;
     #ddev-generated: download n98-magerun2.phar
     scripts/n98-magerun/install.sh
 
