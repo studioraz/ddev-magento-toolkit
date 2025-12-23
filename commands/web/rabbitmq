@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#ddev-generated
+## #ddev-generated: If you want to edit and own this file, remove this line.
 ## Description: Generate config.hooks.rabbitmq.yaml for RabbitMQ addon integration
 ## Usage: rabbitmq
 ## Example: "ddev rabbitmq" to generate the RabbitMQ hooks configuration file
@@ -26,6 +26,7 @@ fi
 
 # --- Create the YAML configuration content ---
 YAML_CONTENT="$(cat <<'YAML'
+#ddev-generated
 # RabbitMQ hooks configuration
 # This file configures post-start hooks to apply RabbitMQ settings
 hooks:
