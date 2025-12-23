@@ -12,6 +12,7 @@ project_files:
   - commands/web/dep
   - commands/web/n98
   - commands/web/generate-env
+  - commands/web/rabbitmq
   - config.magento.hooks.yaml
   - scripts/magento-toolkit/n98-magerun/install.sh
   - scripts/magento-toolkit/n98-magerun/uninstall.sh

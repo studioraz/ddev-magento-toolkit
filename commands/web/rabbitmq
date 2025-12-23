@@ -1,0 +1,50 @@
+#!/bin/bash
+
+#ddev-generated
+## Description: Generate config.hooks.rabbitmq.yaml for RabbitMQ addon integration
+## Usage: rabbitmq
+## Example: "ddev rabbitmq" to generate the RabbitMQ hooks configuration file
+
+set -Eeuo pipefail
+
+echo "Generating RabbitMQ hooks configuration file"
+
+# --- Require DDEV env vars ---
+if [[ -z "${DDEV_APPROOT:-}" ]]; then
+  echo "ERROR: DDEV_APPROOT must be set. Run via 'ddev rabbitmq'." >&2
+  exit 1
+fi
+
+DDEV_DIR="${DDEV_APPROOT}/.ddev"
+CONFIG_FILE="${DDEV_DIR}/config.hooks.rabbitmq.yaml"
+
+# --- Check if .ddev directory exists ---
+if [[ ! -d "$DDEV_DIR" ]]; then
+  echo "ERROR: .ddev directory not found at $DDEV_DIR" >&2
+  exit 1
+fi
+
+# --- Create the YAML configuration content ---
+YAML_CONTENT="$(cat <<'YAML'
+# RabbitMQ hooks configuration
+# This file configures post-start hooks to apply RabbitMQ settings
+hooks:
+  post-start:
+    - exec-host: ddev rabbitmq apply
+YAML
+)"
+
+# --- Check if file already exists ---
+if [[ -f "$CONFIG_FILE" ]]; then
+  echo "WARNING: $CONFIG_FILE already exists."
+  echo "File not overwritten. Delete the existing file first if you want to regenerate it."
+  exit 0
+fi
+
+# --- Write the configuration file ---
+printf "%s\n" "$YAML_CONTENT" > "$CONFIG_FILE"
+
+echo "✓ RabbitMQ hooks configuration generated at $CONFIG_FILE"
+echo ""
+echo "The configuration file will execute 'ddev rabbitmq apply' after DDEV starts."
+echo "Make sure the ddev-rabbitmq addon is installed and configured."

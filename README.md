@@ -7,6 +7,7 @@ A comprehensive DDEV add-on that provides essential tools and configurations for
 - **n98-magerun2 Integration**: Access to the powerful Magento CLI tool via `ddev n98`
 - **Deployer Support**: Run Deployer commands with `ddev dep`
 - **Automated Environment Configuration**: Generate `env.php` with proper DDEV settings using `ddev generate-env`
+- **RabbitMQ Addon Integration**: Generate RabbitMQ hooks configuration with `ddev rabbitmq`
 - **Pre-configured Services**: 
   - Redis for session storage and caching
   - OpenSearch for catalog search
@@ -99,6 +100,41 @@ ddev dep task:name
 ```
 
 **Requirements:** Deployer must be installed as a Composer dependency (`vendor/bin/dep` must exist).
+
+### `ddev rabbitmq`
+
+Generate the RabbitMQ hooks configuration file for automatic RabbitMQ setup on DDEV start.
+
+**Usage:**
+```bash
+ddev rabbitmq
+```
+
+**Description:**
+This command generates a `config.hooks.rabbitmq.yaml` file in your `.ddev` directory that automatically applies RabbitMQ configuration when DDEV starts.
+
+**Generated Configuration:**
+The command creates `.ddev/config.hooks.rabbitmq.yaml` with:
+```yaml
+hooks:
+  post-start:
+    - exec-host: ddev rabbitmq apply
+```
+
+**Examples:**
+```bash
+# Generate the RabbitMQ hooks configuration
+ddev rabbitmq
+
+# After generation, restart DDEV to apply the hooks
+ddev restart
+```
+
+**Requirements:** 
+- The [ddev-rabbitmq](https://github.com/ddev/ddev-rabbitmq) addon must be installed
+- The `ddev rabbitmq apply` command must be available in your environment
+
+**Note:** If the configuration file already exists, the command will not overwrite it. Delete the existing file first if you need to regenerate it.
 
 ### `ddev generate-env`
 
@@ -231,6 +267,21 @@ ddev magento indexer:reindex
 ddev launch
 ```
 
+### Setting Up RabbitMQ Integration
+
+```bash
+# Install the RabbitMQ addon (if not already installed)
+ddev get ddev/ddev-rabbitmq
+
+# Generate the RabbitMQ hooks configuration
+ddev rabbitmq
+
+# Restart DDEV to apply the hooks
+ddev restart
+
+# The RabbitMQ configuration will now be automatically applied on each DDEV start
+```
+
 ### Daily Development Workflow
 
 ```bash
@@ -271,7 +322,8 @@ After installation, the toolkit adds the following files to your `.ddev` directo
 │   └── web/
 │       ├── dep                      # Deployer command
 │       ├── n98                      # n98-magerun2 command
-│       └── generate-env             # Environment generator command
+│       ├── generate-env             # Environment generator command
+│       └── rabbitmq                 # RabbitMQ hooks generator command
 ├── scripts/
 │   └── magento-toolkit/
 │       └── n98-magerun/
