@@ -151,7 +151,7 @@ hooks:
 
 **post-import-db hooks:**
 - Imports store configuration from `config/store` directory (requires Magento config data import)
-- Sets admin password for user `studioraz` to `qwaszx1234$`
+- Sets admin password for user `studioraz` to `qwaszx1234$` ⚠️ **(local development only - see security note below)**
 
 **post-start hooks:**
 - Automatically generates `env.php` if it doesn't exist when starting DDEV
@@ -172,11 +172,16 @@ Available environment variables:
 
 ### Security Note
 
-⚠️ **Important:** The default admin password set by the post-import-db hook is `qwaszx1234$` for user `studioraz`. This is intended for local development only. 
+⚠️ **IMPORTANT SECURITY WARNING** ⚠️
 
-**You should:**
-1. Change this password immediately after import, or
-2. Modify the hook in `.ddev/config.magento.hooks.yaml` to use your preferred credentials
+The default admin password set by the post-import-db hook is `qwaszx1234$` for user `studioraz`. 
+
+**This is a hardcoded credential intended ONLY for local development environments.**
+
+**You MUST:**
+1. **Never use these credentials in production or staging environments**
+2. **Change this password immediately after import**, or
+3. **Modify the hook** in `.ddev/config.magento.hooks.yaml` to use your preferred credentials
 
 To customize the admin user and password, edit `.ddev/config.magento.hooks.yaml`:
 
@@ -184,8 +189,10 @@ To customize the admin user and password, edit `.ddev/config.magento.hooks.yaml`
 hooks:
   post-import-db:
     - exec: bin/magento config:data:import config/store dev
-    - exec: bin/n98 admin:user:change-password <your-username> <your-password>
+    - exec: bin/n98 admin:user:change-password <your-username> <your-secure-password>
 ```
+
+**Recommended:** Use strong, unique passwords and avoid storing credentials in version control.
 
 ## Usage Examples
 
@@ -203,8 +210,8 @@ ddev import-db --src=database.sql.gz
 
 # Access the admin panel
 # URL: https://your-project.ddev.site/admin
-# User: studioraz
-# Password: qwaszx1234$
+# Default User: studioraz
+# Default Password: qwaszx1234$ (⚠️ CHANGE IMMEDIATELY - for local dev only!)
 ```
 
 ### Working with an Existing Project
