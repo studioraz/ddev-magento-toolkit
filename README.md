@@ -24,11 +24,11 @@ A comprehensive DDEV add-on that provides essential tools and configurations for
 Install the toolkit using DDEV's `get` command:
 
 ```bash
-ddev get studioraz/ddev-magento-toolkit
+ddev add-on get studioraz/ddev-magento-toolkit
 ```
 
 This will:
-1. Install the required dependencies (Redis and OpenSearch)
+1. Install the required dependencies (Redis RabbitMQ and OpenSearch)
 2. Copy custom commands to your project's `.ddev/commands/web/` directory
 3. Set up configuration hooks in `.ddev/config.magento.hooks.yaml`
 4. Download and install n98-magerun2 to your project's `bin/` directory
@@ -129,6 +129,7 @@ ddev generate-env --dry-run
 - Database connection to DDEV's database service
 - Redis configuration for session storage and caching
 - OpenSearch configuration for catalog search
+- RabbitMQ configuration for message queue 
 - Admin URI (customizable via `ADMIN_URI` environment variable)
 - Magento mode (customizable via `MAGE_MODE` environment variable)
 - Secure base URLs for your DDEV site
@@ -200,7 +201,7 @@ hooks:
 
 ```bash
 # Install the toolkit
-ddev get studioraz/ddev-magento-toolkit
+ddev add-on get studioraz/ddev-magento-toolkit
 
 # Start DDEV (env.php will be auto-generated)
 ddev start
@@ -218,7 +219,7 @@ ddev import-db --src=database.sql.gz
 
 ```bash
 # Install the toolkit
-ddev get studioraz/ddev-magento-toolkit
+ddev add-on get studioraz/ddev-magento-toolkit
 
 # Regenerate env.php with DDEV settings
 ddev generate-env --force
@@ -258,6 +259,7 @@ This toolkit automatically installs the following DDEV add-ons:
 
 - **[ddev-redis](https://github.com/ddev/ddev-redis)**: Redis service for session storage and caching
 - **[ddev-opensearch](https://github.com/ddev/ddev-opensearch)**: OpenSearch service for Magento catalog search
+- **[ddev-rabbitmq](https://github.com/ddev/ddev-rabbitmq)**: RabbitMQ service for Magento message queue
 
 These services are configured automatically in the generated `env.php` file.
 
@@ -326,7 +328,7 @@ ddev composer require deployer/deployer --dev
    ```
 2. If missing, reinstall the toolkit:
    ```bash
-   ddev get studioraz/ddev-magento-toolkit
+   ddev add-on get studioraz/ddev-magento-toolkit
    ddev restart
    ```
 
@@ -341,7 +343,9 @@ Or create a new admin user:
 ```bash
 ddev magento admin:user:create \
   --admin-user=admin \
-  --admin-password=YourPassword123 \
+  --admin-password=YourPassword123 Let me know if there is anything else I can help you with.
+
+
   --admin-email=admin@example.com \
   --admin-firstname=Admin \
   --admin-lastname=User
@@ -362,7 +366,7 @@ ddev magento setup:static-content:deploy -f
 To upgrade to the latest version of the toolkit:
 
 ```bash
-ddev get studioraz/ddev-magento-toolkit
+ddev add-on get studioraz/ddev-magento-toolkit
 ddev restart
 ```
 
@@ -373,7 +377,7 @@ Files marked with `#ddev-generated` will be automatically updated. If you've cus
 To remove the toolkit:
 
 ```bash
-ddev get --remove studioraz/ddev-magento-toolkit
+ddev add-on remove studioraz/ddev-magento-toolkit
 ```
 
 This will:
@@ -384,8 +388,9 @@ This will:
 **Note:** This will not remove the Redis and OpenSearch services. To remove them:
 
 ```bash
-ddev get --remove ddev/ddev-redis
-ddev get --remove ddev/ddev-opensearch
+ddev add-on remove ddev/ddev-redis
+ddev add-on remove ddev/ddev-opensearch
+ddev add-on remove ddev/ddev-rabbitmq
 ```
 
 ## Contributing
