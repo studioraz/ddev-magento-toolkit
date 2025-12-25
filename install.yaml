@@ -20,7 +20,7 @@ project_files:
 dependencies:
   - ddev/ddev-redis
   - ddev/ddev-opensearch
-
+  - ddev/ddev-rabbitmq
 # DDEV environment variables can be interpolated into these actions.
 # post_install_actions are executed in the context of the target project's .ddev directory.
 post_install_actions:
