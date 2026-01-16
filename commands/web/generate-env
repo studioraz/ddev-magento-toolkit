@@ -162,6 +162,9 @@ return [
                     'use_in_adminhtml' => '1',
                     'base_url' => 'https://${HOSTNAME}/'
                 ],
+                'unsecure' => [                  
+                    'base_url' => 'https://${HOSTNAME}/'
+                ],
                 'cookie' => [
                     'cookie_domain' => '${HOSTNAME}',
                     'cookie_lifetime' => '108000'
