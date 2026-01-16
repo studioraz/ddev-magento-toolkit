@@ -176,6 +176,16 @@ return [
                 ]
             ]
         ]
+    ],
+    'queue' => [
+        'amqp' => [
+            'host' => 'rabbitmq',
+            'port' => 5672,
+            'user' => 'rabbitmq',
+            'password' => 'rabbitmq',
+            'virtualhost' => '/',
+            'ssl' => ''
+        ],
     ]
 ];
 PHP
