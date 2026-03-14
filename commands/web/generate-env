@@ -160,10 +160,12 @@ return [
                 'secure' => [
                     'use_in_frontend' => '1',
                     'use_in_adminhtml' => '1',
-                    'base_url' => 'https://${HOSTNAME}/'
+                    'base_url' => 'https://${HOSTNAME}/',
+                    'base_link_url' => 'https://${HOSTNAME}/'
                 ],
-                'unsecure' => [                  
-                    'base_url' => 'https://${HOSTNAME}/'
+                'unsecure' => [
+                    'base_url' => 'https://${HOSTNAME}/',
+                    'base_link_url' => 'https://${HOSTNAME}/'
                 ],
                 'cookie' => [
                     'cookie_domain' => '${HOSTNAME}',
