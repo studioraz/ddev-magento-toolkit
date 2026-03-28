@@ -3,9 +3,9 @@
 ## Description: Run Deployer (dep) inside the DDEV web container
 ## Usage:       dep [args]
 
-if [ ! -f vendor/bin/dep ]; then
+if [ ! -f ~/.composer/vendor/bin/dep ]; then
   echo 'deployer does not exist.'
   exit 1
 fi
 
-php vendor/bin/dep "$@"
+php ~/.composer/vendor/bin/dep "$@"
