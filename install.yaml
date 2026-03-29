@@ -15,6 +15,7 @@ project_files:
   - config.magento.hooks.yaml
   - scripts/magento-toolkit/n98-magerun/install.sh
   - scripts/magento-toolkit/n98-magerun/uninstall.sh
+  - scripts/magento-toolkit/check-for-updates.sh
 
 # List of add-on names that this add-on depends on
 dependencies:
