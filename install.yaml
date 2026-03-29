@@ -1,5 +1,5 @@
 # Details about the install.yaml file are at https://ddev.readthedocs.io/en/stable/users/extend/additional-services/#sections-and-features-of-ddev-get-add-on-installyaml
-
+#ddev-generated
 name: ddev-magento-toolkit
 
 # list of files and directories listed that are copied into project .ddev directory

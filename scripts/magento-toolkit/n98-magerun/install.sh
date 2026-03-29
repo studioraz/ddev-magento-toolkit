@@ -1,3 +1,4 @@
+#ddev-generated
 if [ -f "${DDEV_APPROOT}/bin/n98" ]; then
     echo "n98 already installed at bin/n98"
     exit 0

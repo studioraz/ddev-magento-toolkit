@@ -1,6 +1,5 @@
 #!/bin/bash
-
-## #ddev-generated: If you want to edit and own this file, remove this line.
+#ddev-generated
 ## Description: Generate app/etc/env.php for a Magento project in DDEV.
 ## Example: "ddev generate-env --force" or "ddev generate-env --dry-run"
 ## Flags: [{"Name":"force","Usage":"Override an existing env.php file"},{"Name":"dry-run","Usage":"Simulate the generation without writing the file"}]
