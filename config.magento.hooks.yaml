@@ -6,3 +6,4 @@ hooks:
   post-start:
     - exec-host: '[ -f app/etc/env.php ] || ddev generate-env'
     - exec-host: .ddev/scripts/magento-toolkit/check-for-updates.sh
+    - exec: bash /var/www/html/.ddev/scripts/magento-toolkit/deployer/install.sh
