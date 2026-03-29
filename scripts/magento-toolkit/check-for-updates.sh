@@ -20,14 +20,8 @@ if [ -z "$INSTALLED_VERSION" ]; then
     exit 1
 fi
 
-# 3. Compare and output results
-echo "------------------------------------------"
-echo "Latest Remote Version:    $LATEST_VERSION"
-echo "Currently Installed:      $INSTALLED_VERSION"
-echo "------------------------------------------"
-
 if [ "$LATEST_VERSION" != "$INSTALLED_VERSION" ]; then
     ddev addon get studioraz/ddev-magento-toolkit
 else
-    echo "✅ You are running the latest version."
+    echo "✅ You are running the latest version: $INSTALLED_VERSION."
 fi
