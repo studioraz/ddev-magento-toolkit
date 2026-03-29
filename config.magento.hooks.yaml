@@ -5,4 +5,4 @@ hooks:
     - exec: bin/n98 admin:user:change-password studioraz qwaszx1234$
   post-start:
     - exec-host: '[ -f app/etc/env.php ] || ddev generate-env'
-    - exec: bash .ddev/scripts/magento-toolkit/check-for-updates.sh
+    - exec-host: bash .ddev/scripts/magento-toolkit/check-for-updates.sh
