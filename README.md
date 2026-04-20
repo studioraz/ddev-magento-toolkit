@@ -7,6 +7,7 @@ A comprehensive DDEV add-on that provides essential tools and configurations for
 - **n98-magerun2 Integration**: Access to the powerful Magento CLI tool via `ddev n98`
 - **Deployer Support**: Run Deployer commands with `ddev dep`
 - **Automated Environment Configuration**: Generate `env.php` with proper DDEV settings using `ddev generate-env`
+- **Module Compatibility Report**: Generate a CSV or AI prompt for third-party Magento module upgrade planning with `ddev module-report`
 - **Pre-configured Services**: 
   - Redis for session storage and caching
   - OpenSearch for catalog search
@@ -134,6 +135,35 @@ ddev generate-env --dry-run
 - Magento mode (customizable via `MAGE_MODE` environment variable)
 - Secure base URLs for your DDEV site
 - Encryption key (preserved from existing env.php or generated)
+
+### `ddev module-report`
+
+Generate a report of third-party Magento modules, including installed version, latest available version, latest released version, and minimum compatible version for a target Magento upgrade.
+
+**Usage:**
+```bash
+ddev module-report [flags]
+```
+
+**Examples:**
+```bash
+# Default report
+ddev module-report
+
+# Target a specific Magento version
+ddev module-report --target-magento=2.4.8-p3 --output=var/upgrade-2.4.8.csv
+
+# Include child dependency modules
+ddev module-report --include-children
+
+# Generate AI prompt output instead of CSV
+ddev module-report --format=ai-prompt --output=var/module-report.txt
+```
+
+**Notes:**
+- The command is self-contained in the add-on and runs the Python script copied to `.ddev/scripts/magento-toolkit/module-report/module-report.py`.
+- It scans the consumer Magento project root automatically via `DDEV_APPROOT` and project files like `composer.json` and `app/etc/config.php`.
+- Output defaults to `var/module-report.csv`.
 
 ## Configuration
 
@@ -273,9 +303,12 @@ After installation, the toolkit adds the following files to your `.ddev` directo
 │   └── web/
 │       ├── dep                      # Deployer command
 │       ├── n98                      # n98-magerun2 command
-│       └── generate-env             # Environment generator command
+│       ├── generate-env             # Environment generator command
+│       └── module-report            # Module compatibility report command
 ├── scripts/
 │   └── magento-toolkit/
+│       ├── module-report/
+│       │   └── module-report.py     # Shared module report generator
 │       └── n98-magerun/
 │           ├── install.sh           # n98-magerun2 installer
 │           └── uninstall.sh         # Cleanup script

@@ -17,6 +17,8 @@ All files in `project_files` (see `install.yaml`) are copied into the target pro
 | `commands/web/generate-env` | Bash script that writes `app/etc/env.php` from inside the DDEV web container |
 | `commands/web/n98` | Thin wrapper: runs `php bin/n98 "$@"` inside the container |
 | `commands/web/dep` | Thin wrapper: runs `php ~/.composer/vendor/bin/dep "$@"` (global Composer install, not `vendor/bin/`) |
+| `commands/web/module-report` | Wrapper that runs the shared Python compatibility report shipped by this add-on |
+| `scripts/magento-toolkit/module-report/module-report.py` | Shared Magento module compatibility report generator copied into each project's `.ddev/scripts/` |
 | `scripts/magento-toolkit/n98-magerun/install.sh` | Downloads `n98-magerun2.phar` from `files.magerun.net` into `bin/n98` (or `src/bin/n98`) |
 
 ---
@@ -67,7 +69,8 @@ The `commands/web/n98` wrapper always looks for `bin/n98` (relative to the web r
    ## Usage: <command-name> [args]
    ```
 2. Register it in `install.yaml` under `project_files`.
-3. No build step needed – files are shell scripts consumed directly.
+3. If the command depends on helper scripts or templates, place them under `scripts/magento-toolkit/...` and add those paths to `project_files` too.
+4. No build step needed – files are consumed directly after `ddev add-on get`.
 
 ---
 
@@ -77,6 +80,6 @@ There is no automated test suite. Validate manually:
 ddev add-on get studioraz/ddev-magento-toolkit   # install/upgrade
 ddev generate-env --dry-run                       # preview env.php
 ddev n98 list                                     # verify n98 works
+ddev module-report --no-api                       # verify bundled report command
 scripts/check-for-updates.sh                      # compare installed vs latest tag
 ```
-
