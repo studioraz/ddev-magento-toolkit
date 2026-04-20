@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+#ddev-generated
+## Description: Generate 3rd-party module compatibility report CSV
+## Usage: module-report [flags]
+## Example: "ddev module-report" or "ddev module-report --target-magento=2.4.8-p3 --output=report.csv" or "ddev module-report --format=ai-prompt --verbose"
+
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPORT_SCRIPT="$CONFIG_ROOT/scripts/magento-toolkit/module-report/module-report.py"
+
+if [[ ! -f "$REPORT_SCRIPT" ]]; then
+  echo "module-report.py does not exist at $REPORT_SCRIPT" >&2
+  echo "Please reinstall the ddev-magento-toolkit add-on." >&2
+  exit 1
+fi
+
+python3 "$REPORT_SCRIPT" "$@"

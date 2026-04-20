@@ -12,11 +12,13 @@ project_files:
   - commands/web/dep
   - commands/web/n98
   - commands/web/generate-env
+  - commands/web/module-report
   - config.magento.hooks.yaml
   - scripts/magento-toolkit/n98-magerun/install.sh
   - scripts/magento-toolkit/n98-magerun/uninstall.sh
   - scripts/magento-toolkit/check-for-updates.sh
   - scripts/magento-toolkit/deployer/install.sh
+  - scripts/magento-toolkit/module-report
 
 # List of add-on names that this add-on depends on
 dependencies:
