@@ -55,7 +55,7 @@ CONTAINER_PROJECT_ROOT="/var/www/html"
 TEMP_PROJECT_DIR=""
 
 cleanup() {
-  if [[ -n "$TEMP_PROJECT_DIR" ]] && ! ddev exec bash -lc "rm -rf \"$TEMP_PROJECT_DIR\"" >/dev/null 2>&1; then
+  if [[ -n "$TEMP_PROJECT_DIR" ]] && ! ddev exec bash -lc "rm -rf \"$TEMP_PROJECT_DIR\"" >/dev/null; then
     echo "Warning: failed to clean up temporary directory $TEMP_PROJECT_DIR" >&2
   fi
 }
@@ -86,11 +86,16 @@ fi
 echo "Starting DDEV services..."
 ddev start
 
+DDEV_PROJECT_NAME="$(ddev exec printenv DDEV_PROJECT | tr -d '\r')"
+if [[ -z "$DDEV_PROJECT_NAME" ]]; then
+  DDEV_PROJECT_NAME="$PROJECT_NAME"
+fi
+
 TEMP_PROJECT_DIR="$(ddev exec mktemp -d /tmp/mageos-install.XXXXXX | tr -d '\r')"
 trap cleanup EXIT
 
 if [[ -z "$BASE_URL" ]]; then
-  BASE_URL="https://${PROJECT_NAME}.ddev.site/"
+  BASE_URL="https://${DDEV_PROJECT_NAME}.ddev.site/"
 fi
 
 echo "Creating MageOS project files..."
@@ -125,9 +130,9 @@ setup_install_cmd=(
   "--currency=$CURRENCY"
   "--timezone=$TIMEZONE"
   --search-engine=opensearch
-  "--opensearch-host=ddev-${PROJECT_NAME}-opensearch"
+  "--opensearch-host=ddev-${DDEV_PROJECT_NAME}-opensearch"
   --opensearch-port=9200
-  "--opensearch-index-prefix=${PROJECT_NAME}_"
+  "--opensearch-index-prefix=${DDEV_PROJECT_NAME}_"
   --use-rewrites=1
 )
 "${setup_install_cmd[@]}"
