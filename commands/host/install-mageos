@@ -8,6 +8,7 @@
 set -Eeuo pipefail
 
 PACKAGE="mageos/project-community-edition"
+MAGEOS_REPOSITORY_URL="https://repo.mage-os.org/"
 MAGEOS_VERSION=""
 BASE_URL=""
 BACKEND_FRONTNAME="${ADMIN_URI:-admin}"
@@ -49,9 +50,9 @@ if ! command -v ddev >/dev/null 2>&1; then
 fi
 
 PROJECT_ROOT="${DDEV_APPROOT:-$(pwd -P)}"
-PROJECT_NAME="${DDEV_SITENAME:-${DDEV_PROJECT:-$(basename "$PROJECT_ROOT")}}"
+PROJECT_NAME="${DDEV_PROJECT:-$(basename "$PROJECT_ROOT")}"
 CONTAINER_PROJECT_ROOT="/var/www/html"
-TEMP_PROJECT_DIR="/tmp/ddev-magento-toolkit-mageos-${RANDOM}-${RANDOM}"
+TEMP_PROJECT_DIR=""
 
 cleanup() {
   ddev exec bash -lc "rm -rf \"$TEMP_PROJECT_DIR\"" >/dev/null 2>&1 || true
@@ -77,7 +78,7 @@ while IFS= read -r entry; do
       break
       ;;
   esac
-done < <(find "$PROJECT_ROOT" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)
+done < <(find "$PROJECT_ROOT" -mindepth 1 -maxdepth 1 | sed 's|.*/||' | sort)
 
 if [[ "$FORCE" -ne 1 && "$has_unexpected_content" -eq 1 ]]; then
   echo "Project root already contains files outside the DDEV scaffolding." >&2
@@ -88,8 +89,10 @@ fi
 echo "Starting DDEV services..."
 ddev start
 
+TEMP_PROJECT_DIR="$(ddev exec mktemp -d /tmp/ddev-magento-toolkit-mageos.XXXXXX | tr -d '\r')"
+
 echo "Creating MageOS project files..."
-create_project_cmd=(ddev exec composer create-project --repository-url=https://repo.mage-os.org/ --no-interaction "$PACKAGE" "$TEMP_PROJECT_DIR")
+create_project_cmd=(ddev exec composer create-project --repository-url="$MAGEOS_REPOSITORY_URL" --no-interaction "$PACKAGE" "$TEMP_PROJECT_DIR")
 if [[ -n "$MAGEOS_VERSION" ]]; then
   create_project_cmd+=("$MAGEOS_VERSION")
 fi
@@ -99,7 +102,7 @@ echo "Copying MageOS project into ${PROJECT_ROOT}..."
 ddev exec bash -lc "shopt -s dotglob nullglob && mv \"$TEMP_PROJECT_DIR\"/* \"$CONTAINER_PROJECT_ROOT\"/ && rmdir \"$TEMP_PROJECT_DIR\""
 
 echo "Persisting the MageOS Composer repository..."
-ddev exec bash -lc "cd \"$CONTAINER_PROJECT_ROOT\" && composer config repositories.mageos composer https://repo.mage-os.org/"
+ddev exec bash -lc "cd \"$CONTAINER_PROJECT_ROOT\" && composer config repositories.mageos composer \"$MAGEOS_REPOSITORY_URL\""
 
 echo "Running MageOS setup:install..."
 setup_install_cmd=(
