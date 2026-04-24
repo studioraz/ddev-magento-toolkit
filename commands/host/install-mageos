@@ -1,154 +1,132 @@
 #!/usr/bin/env bash
-## #ddev-generated: If you want to edit and own this file, remove this line.
-## Description: Install MageOS from scratch in the current DDEV project.
-## Usage: install-mageos [flags]
-## Example: "ddev install-mageos" or "ddev install-mageos --mageos-version=1.0.2 --base-url=https://my-shop.ddev.site/"
-## Flags: [{"Name":"mageos-version","Usage":"Optional MageOS version passed to composer create-project"},{"Name":"base-url","Usage":"Base URL passed to setup:install"},{"Name":"backend-frontname","Usage":"Admin URI, defaults to admin"},{"Name":"admin-user","Usage":"Admin username, defaults to studioraz"},{"Name":"admin-password","Usage":"Admin password, defaults to qwaszx1234$"},{"Name":"admin-firstname","Usage":"Admin first name, defaults to Studio"},{"Name":"admin-lastname","Usage":"Admin last name, defaults to Raz"},{"Name":"admin-email","Usage":"Admin email, defaults to admin@example.com"},{"Name":"language","Usage":"Store locale, defaults to en_US"},{"Name":"currency","Usage":"Default currency, defaults to USD"},{"Name":"timezone","Usage":"Timezone, defaults to UTC"},{"Name":"force","Usage":"Allow install when the project root already contains non-DDEV files"}]
+# ddev-generated
+## Description: Full MageOS install from scratch (composer create-project + setup:install)
+## Usage: mageos-install
 
 set -Eeuo pipefail
 
-PACKAGE="mageos/project-community-edition"
-MAGEOS_REPOSITORY_URL="https://repo.mage-os.org/"
-MAGEOS_VERSION=""
-BASE_URL=""
-BACKEND_FRONTNAME="${ADMIN_URI:-admin}"
-ADMIN_USER="studioraz"
-ADMIN_PASSWORD='qwaszx1234$'
-ADMIN_FIRSTNAME="Studio"
-ADMIN_LASTNAME="Raz"
-ADMIN_EMAIL="admin@example.com"
-LANGUAGE="en_US"
-CURRENCY="USD"
-TIMEZONE="UTC"
-FORCE=0
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --mageos-version=*) MAGEOS_VERSION="${1#*=}" ;;
-    --base-url=*) BASE_URL="${1#*=}" ;;
-    --backend-frontname=*) BACKEND_FRONTNAME="${1#*=}" ;;
-    --admin-user=*) ADMIN_USER="${1#*=}" ;;
-    --admin-password=*) ADMIN_PASSWORD="${1#*=}" ;;
-    --admin-firstname=*) ADMIN_FIRSTNAME="${1#*=}" ;;
-    --admin-lastname=*) ADMIN_LASTNAME="${1#*=}" ;;
-    --admin-email=*) ADMIN_EMAIL="${1#*=}" ;;
-    --language=*) LANGUAGE="${1#*=}" ;;
-    --currency=*) CURRENCY="${1#*=}" ;;
-    --timezone=*) TIMEZONE="${1#*=}" ;;
-    --force) FORCE=1 ;;
-    *)
-      echo "Unknown option: $1" >&2
-      exit 2
-      ;;
-  esac
-  shift
-done
-
-if ! command -v ddev >/dev/null 2>&1; then
-  echo "ddev is required to run this command." >&2
-  exit 1
+# ---------------------------------------------------------------------------
+# Guard: abort if already installed
+# ---------------------------------------------------------------------------
+if [[ -f "$DDEV_APPROOT/vendor/autoload.php" ]]; then
+  echo "────────────────────────────────────────────────────────"
+  echo " MageOS appears to be already installed."
+  echo "────────────────────────────────────────────────────────"
+  #exit 1
 fi
 
-PROJECT_ROOT="${DDEV_APPROOT:-$(pwd -P)}"
-PROJECT_NAME="${DDEV_PROJECT:-$(basename "$PROJECT_ROOT")}"
-CONTAINER_PROJECT_ROOT="/var/www/html"
+HOSTNAME="${DDEV_PROJECT}.ddev.site"
 
-if [[ ! -d "$PROJECT_ROOT/.ddev" ]]; then
-  echo "This command must be run from the root of a DDEV project." >&2
-  exit 1
-fi
+echo "════════════════════════════════════════════════════════"
+echo " MageOS Full Install — DDEV project: ${DDEV_PROJECT}"
+echo "════════════════════════════════════════════════════════"
 
-has_unexpected_content=0
-while IFS= read -r entry; do
-  case "$entry" in
-    .ddev|.git|.gitignore|.gitattributes|.github|.idea|.vscode)
-      ;;
-    *)
-      has_unexpected_content=1
-      break
-      ;;
-  esac
-done < <(find "$PROJECT_ROOT" -mindepth 1 -maxdepth 1 | sed 's|.*/||' | sort)
+# ---------------------------------------------------------------------------
+# Step 1: Composer create-project
+# ---------------------------------------------------------------------------
+echo ""
+echo "▶ Step 1/6 — composer create-project"
+echo "────────────────────────────────────"
 
-if [[ "$FORCE" -ne 1 && "$has_unexpected_content" -eq 1 ]]; then
-  echo "Project root already contains files outside the DDEV scaffolding." >&2
-  echo "Run from a clean DDEV project or pass --force if you want to continue." >&2
-  exit 1
-fi
+ddev composer create-project --repository-url=https://repo.mage-os.org/ mage-os/project-community-edition
+rm -f app/etc/env.php
+# ---------------------------------------------------------------------------
+# Step 2: Magento setup:install
+# ---------------------------------------------------------------------------
+echo ""
+echo "▶ Step 2/6 — bin/magento setup:install"
+echo "────────────────────────────────────────"
 
-echo "Starting DDEV services..."
-ddev start
 
-DDEV_PROJECT_NAME="$(ddev exec printenv DDEV_PROJECT | tr -d '\r')"
-if [[ -z "$DDEV_PROJECT_NAME" ]]; then
-  DDEV_PROJECT_NAME="$PROJECT_NAME"
-fi
-
-if [[ -z "$BASE_URL" ]]; then
-  BASE_URL="https://${DDEV_PROJECT_NAME}.ddev.site/"
-fi
-
-echo "Creating MageOS project files..."
-create_project_cmd=(ddev composer create-project --repository-url="$MAGEOS_REPOSITORY_URL" --no-interaction "$PACKAGE")
-if [[ -n "$MAGEOS_VERSION" ]]; then
-  create_project_cmd+=("$MAGEOS_VERSION")
-fi
-"${create_project_cmd[@]}"
-
-echo "Persisting the MageOS Composer repository..."
-ddev exec bash -lc "cd \"$CONTAINER_PROJECT_ROOT\" && composer config repositories.mageos composer \"$MAGEOS_REPOSITORY_URL\""
-
-echo "Running MageOS setup:install..."
-setup_install_cmd=(
-  ddev exec php "$CONTAINER_PROJECT_ROOT/bin/magento" setup:install
-  "--base-url=$BASE_URL"
-  --db-host=db
-  --db-name=db
-  --db-user=db
-  --db-password=db
-  "--backend-frontname=$BACKEND_FRONTNAME"
-  "--admin-firstname=$ADMIN_FIRSTNAME"
-  "--admin-lastname=$ADMIN_LASTNAME"
-  "--admin-email=$ADMIN_EMAIL"
-  "--admin-user=$ADMIN_USER"
-  "--admin-password=$ADMIN_PASSWORD"
-  "--language=$LANGUAGE"
-  "--currency=$CURRENCY"
-  "--timezone=$TIMEZONE"
-  --session-save=redis
-  --session-save-redis-host=redis
-  --session-save-redis-log-level=1
-  --session-save-redis-db=2
-  --page-cache=redis
-  --page-cache-redis-server=redis
-  --page-cache-redis-port=6379
-  --page-cache-redis-db=1
-  --page-cache-redis-compress-data=1
-  --page-cache-redis-compression-lib=gzip
-  --cache-backend=redis
-  --cache-backend-redis-server=redis
-  --cache-backend-redis-port=6379
-  --cache-backend-redis-db=0
+ddev  magento setup:install \
+  --base-url="https://${HOSTNAME}//" \
+  --db-host="db" \
+  --db-name="db" \
+  --db-user="db" \
+  --db-password="db" \
+  --cleanup-database \
+  --search-engine="opensearch" \
+  --opensearch-host="ddev-${DDEV_PROJECT}-opensearch" \
+  --opensearch-port="9200" \
+  --admin-firstname="Studio" \
+  --admin-lastname="Raz" \
+  --admin-email="dev@studioraz.co.il" \
+  --admin-user="studioraz" \
+  --admin-password="qwaszx1234$" \
+  --backend-frontname="admin" \
+  --language="en_US" \
+  --currency="ILS" \
+  --timezone="Asia/Jerusalem" \
+  --use-rewrites=1 \
+  --session-save=redis \
+  --session-save-redis-host="redis" \
+  --session-save-redis-log-level=1 \
+  --session-save-redis-db=3 \
+  --page-cache=redis \
+  --page-cache-redis-server="redis" \
+  --page-cache-redis-port=6379 \
+  --page-cache-redis-db=1 \
+  --page-cache-redis-compress-data=1 \
+  --page-cache-redis-compression-lib=gzip \
+  --cache-backend=redis \
+  --cache-backend-redis-server="redis" \
+  --cache-backend-redis-port=6379 \
+  --cache-backend-redis-db=0 \
   --cache-backend-redis-use-lua=0
-  --search-engine=opensearch
-  "--opensearch-host=ddev-${DDEV_PROJECT_NAME}-opensearch"
-  --opensearch-port=9200
-  "--opensearch-index-prefix=${DDEV_PROJECT_NAME}_"
-  --use-rewrites=1
-)
-"${setup_install_cmd[@]}"
 
-echo "Generating DDEV-specific env.php..."
-ddev generate-env --force
+# ---------------------------------------------------------------------------
+# Step 3: Disable 2FA (dev convenience)
+# ---------------------------------------------------------------------------
+echo ""
+echo "▶ Step 3/6 — Disable 2FA"
+echo "─────────────────────────"
 
-echo "Flushing Magento cache..."
-ddev exec php "$CONTAINER_PROJECT_ROOT/bin/magento" cache:flush
+ddev exec bin/magento module:disable Magento_TwoFactorAuth 2>/dev/null || true
 
-cat <<EOF
-MageOS installation complete.
+# ---------------------------------------------------------------------------
+# Step 4: Developer mode
+# ---------------------------------------------------------------------------
+echo ""
+echo "▶ Step 4/6 — Set developer mode"
+echo "─────────────────────────────────"
 
-Storefront: ${BASE_URL}
-Admin URL: ${BASE_URL%/}/${BACKEND_FRONTNAME}
-Admin user: ${ADMIN_USER}
-Admin password: ${ADMIN_PASSWORD}
-EOF
+ddev exec bin/magento deploy:mode:set developer
+
+# ---------------------------------------------------------------------------
+# Step 5: Reindex
+# ---------------------------------------------------------------------------
+echo ""
+echo "▶ Step 5/6 — Reindex"
+echo "──────────────────────"
+
+ddev exec bin/magento indexer:reindex
+
+# ---------------------------------------------------------------------------
+# Step 6: Cache flush
+# ---------------------------------------------------------------------------
+echo ""
+echo "▶ Step 6/6 — Flush cache"
+echo "──────────────────────────"
+
+ddev exec bin/magento cache:flush
+
+echo ""
+echo "▶ Finalizing DDEV configuration"
+echo "──────────────────────────────"
+ddev config --docroot=pub --upload-dirs=media
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+echo ""
+echo "════════════════════════════════════════════════════════"
+echo " ✅ MageOS installation complete!"
+echo "════════════════════════════════════════════════════════"
+echo " Site URL   : https://${HOSTNAME}/"
+echo " Admin URL  : https://${HOSTNAME}/admin"
+echo " Admin user : studioraz"
+echo " Admin pass : qwaszx1234"
+echo "════════════════════════════════════════════════════════"
+
+echo ""
+echo "Restart DDEV to apply new configuration"
+ddev restart
