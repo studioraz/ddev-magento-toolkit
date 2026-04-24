@@ -89,9 +89,9 @@ if [[ -z "$BASE_URL" ]]; then
 fi
 
 echo "Creating MageOS project files..."
-create_project_cmd=(ddev exec bash -lc "cd \"$CONTAINER_PROJECT_ROOT\" && composer create-project --repository-url=\"$MAGEOS_REPOSITORY_URL\" --no-interaction \"$PACKAGE\"")
+create_project_cmd=(ddev composer create-project --repository-url="$MAGEOS_REPOSITORY_URL" --no-interaction "$PACKAGE")
 if [[ -n "$MAGEOS_VERSION" ]]; then
-  create_project_cmd[3]="cd \"$CONTAINER_PROJECT_ROOT\" && composer create-project --repository-url=\"$MAGEOS_REPOSITORY_URL\" --no-interaction \"$PACKAGE\" \"$MAGEOS_VERSION\""
+  create_project_cmd+=("$MAGEOS_VERSION")
 fi
 "${create_project_cmd[@]}"
 
