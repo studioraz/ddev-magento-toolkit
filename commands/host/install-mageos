@@ -55,7 +55,9 @@ CONTAINER_PROJECT_ROOT="/var/www/html"
 TEMP_PROJECT_DIR=""
 
 cleanup() {
-  ddev exec bash -lc "rm -rf \"$TEMP_PROJECT_DIR\"" >/dev/null 2>&1 || true
+  if [[ -n "$TEMP_PROJECT_DIR" ]] && ! ddev exec bash -lc "rm -rf \"$TEMP_PROJECT_DIR\"" >/dev/null 2>&1; then
+    echo "Warning: failed to clean up temporary directory $TEMP_PROJECT_DIR" >&2
+  fi
 }
 trap cleanup EXIT
 
@@ -89,7 +91,7 @@ fi
 echo "Starting DDEV services..."
 ddev start
 
-TEMP_PROJECT_DIR="$(ddev exec mktemp -d /tmp/ddev-magento-toolkit-mageos.XXXXXX | tr -d '\r')"
+TEMP_PROJECT_DIR="$(ddev exec mktemp -d /tmp/mageos-install.XXXXXX | tr -d '\r')"
 
 echo "Creating MageOS project files..."
 create_project_cmd=(ddev exec composer create-project --repository-url="$MAGEOS_REPOSITORY_URL" --no-interaction "$PACKAGE" "$TEMP_PROJECT_DIR")
