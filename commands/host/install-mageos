@@ -59,15 +59,10 @@ cleanup() {
     echo "Warning: failed to clean up temporary directory $TEMP_PROJECT_DIR" >&2
   fi
 }
-trap cleanup EXIT
 
 if [[ ! -d "$PROJECT_ROOT/.ddev" ]]; then
   echo "This command must be run from the root of a DDEV project." >&2
   exit 1
-fi
-
-if [[ -z "$BASE_URL" ]]; then
-  BASE_URL="https://${PROJECT_NAME}.ddev.site/"
 fi
 
 has_unexpected_content=0
@@ -92,6 +87,11 @@ echo "Starting DDEV services..."
 ddev start
 
 TEMP_PROJECT_DIR="$(ddev exec mktemp -d /tmp/mageos-install.XXXXXX | tr -d '\r')"
+trap cleanup EXIT
+
+if [[ -z "$BASE_URL" ]]; then
+  BASE_URL="https://${PROJECT_NAME}.ddev.site/"
+fi
 
 echo "Creating MageOS project files..."
 create_project_cmd=(ddev exec composer create-project --repository-url="$MAGEOS_REPOSITORY_URL" --no-interaction "$PACKAGE" "$TEMP_PROJECT_DIR")
@@ -101,7 +101,8 @@ fi
 "${create_project_cmd[@]}"
 
 echo "Copying MageOS project into ${PROJECT_ROOT}..."
-ddev exec bash -lc "shopt -s dotglob nullglob && mv \"$TEMP_PROJECT_DIR\"/* \"$CONTAINER_PROJECT_ROOT\"/ && rmdir \"$TEMP_PROJECT_DIR\""
+ddev exec bash -lc "shopt -s dotglob nullglob && mv -f \"$TEMP_PROJECT_DIR\"/* \"$CONTAINER_PROJECT_ROOT\"/ && rm -rf \"$TEMP_PROJECT_DIR\""
+TEMP_PROJECT_DIR=""
 
 echo "Persisting the MageOS Composer repository..."
 ddev exec bash -lc "cd \"$CONTAINER_PROJECT_ROOT\" && composer config repositories.mageos composer \"$MAGEOS_REPOSITORY_URL\""
