@@ -9,6 +9,7 @@ name: ddev-magento-toolkit
 # If you use directories, they must be directories that are managed
 # by this add-on, or removal could remove things that are not owned by it
 project_files:
+  - commands/host/install-mageos
   - commands/web/dep
   - commands/web/n98
   - commands/web/generate-env

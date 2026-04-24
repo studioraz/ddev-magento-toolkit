@@ -30,7 +30,7 @@ ddev add-on get studioraz/ddev-magento-toolkit
 
 This will:
 1. Install the required dependencies (Redis RabbitMQ and OpenSearch)
-2. Copy custom commands to your project's `.ddev/commands/web/` directory
+2. Copy custom commands to your project's `.ddev/commands/web/` and `.ddev/commands/host/` directories
 3. Set up configuration hooks in `.ddev/config.magento.hooks.yaml`
 4. Download and install n98-magerun2 to your project's `bin/` directory
 5. Make all scripts executable
@@ -135,6 +135,46 @@ ddev generate-env --dry-run
 - Magento mode (customizable via `MAGE_MODE` environment variable)
 - Secure base URLs for your DDEV site
 - Encryption key (preserved from existing env.php or generated)
+
+### `ddev install-mageos`
+
+Install a fresh MageOS codebase into a clean DDEV project, run the initial Magento installer, and then regenerate `env.php` with this add-on's DDEV defaults.
+
+**Usage:**
+```bash
+ddev install-mageos [flags]
+```
+
+**Examples:**
+```bash
+# Install the latest MageOS release
+ddev install-mageos
+
+# Install a specific MageOS version and customize the storefront/admin paths
+ddev install-mageos \
+  --mageos-version=1.0.2 \
+  --base-url=https://my-shop.ddev.site/ \
+  --backend-frontname=backend
+```
+
+**Flags:**
+- `--mageos-version=<version>` - Optional version passed to `composer create-project`
+- `--base-url=<url>` - Storefront URL used during `setup:install` (defaults to `https://<project>.ddev.site/`)
+- `--backend-frontname=<path>` - Admin URI (default: `admin`)
+- `--admin-user=<username>` - Admin username (default: `studioraz`)
+- `--admin-password=<password>` - Admin password (default: `qwaszx1234$`)
+- `--admin-firstname=<name>` - Admin first name (default: `Studio`)
+- `--admin-lastname=<name>` - Admin last name (default: `Raz`)
+- `--admin-email=<email>` - Admin email (default: `admin@example.com`)
+- `--language=<locale>` - Store locale (default: `en_US`)
+- `--currency=<code>` - Store currency (default: `USD`)
+- `--timezone=<timezone>` - Store timezone (default: `UTC`)
+- `--force` - Allow installation even if the project root already contains files besides DDEV scaffolding
+
+**Notes:**
+- Run this from a clean DDEV project root after installing the add-on.
+- The command scaffolds `mageos/project-community-edition` from `https://repo.mage-os.org/`.
+- After `setup:install`, it runs `ddev generate-env --force` so Redis, RabbitMQ, and OpenSearch are wired up with this toolkit's defaults.
 
 ### `ddev module-report`
 
@@ -245,6 +285,18 @@ ddev import-db --src=database.sql.gz
 # Default Password: qwaszx1234$ (⚠️ CHANGE IMMEDIATELY - for local dev only!)
 ```
 
+### Creating a Brand-New MageOS Project
+
+```bash
+# Create an empty DDEV PHP project
+mkdir my-mageos && cd my-mageos
+ddev config --project-type=php --docroot=pub --create-docroot=false
+ddev add-on get studioraz/ddev-magento-toolkit
+
+# Scaffold MageOS and run the installer
+ddev install-mageos
+```
+
 ### Working with an Existing Project
 
 ```bash
@@ -300,11 +352,13 @@ After installation, the toolkit adds the following files to your `.ddev` directo
 ```
 .ddev/
 ├── commands/
+│   ├── host/
+│   │   └── install-mageos          # Fresh MageOS installer
 │   └── web/
-│       ├── dep                      # Deployer command
-│       ├── n98                      # n98-magerun2 command
-│       ├── generate-env             # Environment generator command
-│       └── module-report            # Module compatibility report command
+│       ├── dep                     # Deployer command
+│       ├── n98                     # n98-magerun2 command
+│       ├── generate-env            # Environment generator command
+│       └── module-report           # Module compatibility report command
 ├── scripts/
 │   └── magento-toolkit/
 │       ├── module-report/

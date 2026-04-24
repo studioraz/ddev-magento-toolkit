@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Install MageOS from scratch in the current DDEV project.
+## Usage: install-mageos [flags]
+## Example: "ddev install-mageos" or "ddev install-mageos --mageos-version=1.0.2 --base-url=https://my-shop.ddev.site/"
+## Flags: [{"Name":"mageos-version","Usage":"Optional MageOS version passed to composer create-project"},{"Name":"base-url","Usage":"Base URL passed to setup:install"},{"Name":"backend-frontname","Usage":"Admin URI, defaults to admin"},{"Name":"admin-user","Usage":"Admin username, defaults to studioraz"},{"Name":"admin-password","Usage":"Admin password, defaults to qwaszx1234$"},{"Name":"admin-firstname","Usage":"Admin first name, defaults to Studio"},{"Name":"admin-lastname","Usage":"Admin last name, defaults to Raz"},{"Name":"admin-email","Usage":"Admin email, defaults to admin@example.com"},{"Name":"language","Usage":"Store locale, defaults to en_US"},{"Name":"currency","Usage":"Default currency, defaults to USD"},{"Name":"timezone","Usage":"Timezone, defaults to UTC"},{"Name":"force","Usage":"Allow install when the project root already contains non-DDEV files"}]
+
+set -Eeuo pipefail
+
+PACKAGE="mageos/project-community-edition"
+MAGEOS_VERSION=""
+BASE_URL=""
+BACKEND_FRONTNAME="${ADMIN_URI:-admin}"
+ADMIN_USER="studioraz"
+ADMIN_PASSWORD='qwaszx1234$'
+ADMIN_FIRSTNAME="Studio"
+ADMIN_LASTNAME="Raz"
+ADMIN_EMAIL="admin@example.com"
+LANGUAGE="en_US"
+CURRENCY="USD"
+TIMEZONE="UTC"
+FORCE=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --mageos-version=*) MAGEOS_VERSION="${1#*=}" ;;
+    --base-url=*) BASE_URL="${1#*=}" ;;
+    --backend-frontname=*) BACKEND_FRONTNAME="${1#*=}" ;;
+    --admin-user=*) ADMIN_USER="${1#*=}" ;;
+    --admin-password=*) ADMIN_PASSWORD="${1#*=}" ;;
+    --admin-firstname=*) ADMIN_FIRSTNAME="${1#*=}" ;;
+    --admin-lastname=*) ADMIN_LASTNAME="${1#*=}" ;;
+    --admin-email=*) ADMIN_EMAIL="${1#*=}" ;;
+    --language=*) LANGUAGE="${1#*=}" ;;
+    --currency=*) CURRENCY="${1#*=}" ;;
+    --timezone=*) TIMEZONE="${1#*=}" ;;
+    --force) FORCE=1 ;;
+    *)
+      echo "Unknown option: $1" >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+if ! command -v ddev >/dev/null 2>&1; then
+  echo "ddev is required to run this command." >&2
+  exit 1
+fi
+
+PROJECT_ROOT="${DDEV_APPROOT:-$(pwd -P)}"
+PROJECT_NAME="${DDEV_SITENAME:-${DDEV_PROJECT:-$(basename "$PROJECT_ROOT")}}"
+CONTAINER_PROJECT_ROOT="/var/www/html"
+TEMP_PROJECT_DIR="/tmp/ddev-magento-toolkit-mageos-${RANDOM}-${RANDOM}"
+
+cleanup() {
+  ddev exec bash -lc "rm -rf \"$TEMP_PROJECT_DIR\"" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+if [[ ! -d "$PROJECT_ROOT/.ddev" ]]; then
+  echo "This command must be run from the root of a DDEV project." >&2
+  exit 1
+fi
+
+if [[ -z "$BASE_URL" ]]; then
+  BASE_URL="https://${PROJECT_NAME}.ddev.site/"
+fi
+
+has_unexpected_content=0
+while IFS= read -r entry; do
+  case "$entry" in
+    .ddev|.git|.gitignore|.gitattributes|.github|.idea|.vscode)
+      ;;
+    *)
+      has_unexpected_content=1
+      break
+      ;;
+  esac
+done < <(find "$PROJECT_ROOT" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)
+
+if [[ "$FORCE" -ne 1 && "$has_unexpected_content" -eq 1 ]]; then
+  echo "Project root already contains files outside the DDEV scaffolding." >&2
+  echo "Run from a clean DDEV project or pass --force if you want to continue." >&2
+  exit 1
+fi
+
+echo "Starting DDEV services..."
+ddev start
+
+echo "Creating MageOS project files..."
+create_project_cmd=(ddev exec composer create-project --repository-url=https://repo.mage-os.org/ --no-interaction "$PACKAGE" "$TEMP_PROJECT_DIR")
+if [[ -n "$MAGEOS_VERSION" ]]; then
+  create_project_cmd+=("$MAGEOS_VERSION")
+fi
+"${create_project_cmd[@]}"
+
+echo "Copying MageOS project into ${PROJECT_ROOT}..."
+ddev exec bash -lc "shopt -s dotglob nullglob && mv \"$TEMP_PROJECT_DIR\"/* \"$CONTAINER_PROJECT_ROOT\"/ && rmdir \"$TEMP_PROJECT_DIR\""
+
+echo "Persisting the MageOS Composer repository..."
+ddev exec bash -lc "cd \"$CONTAINER_PROJECT_ROOT\" && composer config repositories.mageos composer https://repo.mage-os.org/"
+
+echo "Running MageOS setup:install..."
+setup_install_cmd=(
+  ddev exec php "$CONTAINER_PROJECT_ROOT/bin/magento" setup:install
+  "--base-url=$BASE_URL"
+  --db-host=db
+  --db-name=db
+  --db-user=db
+  --db-password=db
+  "--backend-frontname=$BACKEND_FRONTNAME"
+  "--admin-firstname=$ADMIN_FIRSTNAME"
+  "--admin-lastname=$ADMIN_LASTNAME"
+  "--admin-email=$ADMIN_EMAIL"
+  "--admin-user=$ADMIN_USER"
+  "--admin-password=$ADMIN_PASSWORD"
+  "--language=$LANGUAGE"
+  "--currency=$CURRENCY"
+  "--timezone=$TIMEZONE"
+  --search-engine=opensearch
+  "--opensearch-host=ddev-${PROJECT_NAME}-opensearch"
+  --opensearch-port=9200
+  "--opensearch-index-prefix=${PROJECT_NAME}_"
+  --use-rewrites=1
+)
+"${setup_install_cmd[@]}"
+
+echo "Generating DDEV-specific env.php..."
+ddev generate-env --force
+
+echo "Flushing Magento cache..."
+ddev exec php "$CONTAINER_PROJECT_ROOT/bin/magento" cache:flush
+
+cat <<EOF
+MageOS installation complete.
+
+Storefront: ${BASE_URL}
+Admin URL: ${BASE_URL%/}/${BACKEND_FRONTNAME}
+Admin user: ${ADMIN_USER}
+Admin password: ${ADMIN_PASSWORD}
+EOF
