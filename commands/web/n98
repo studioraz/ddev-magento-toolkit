@@ -4,10 +4,18 @@
 ## Usage: n98 [flags] [args]
 ## Example: "ddev n98 list" or "ddev n98 maintenance:enable" or "ddev n98 sampledata:reset"
 
-if [ ! -f bin/n98 ]; then
-  echo 'bin/n98 does not exist.'
-  echo 'Please verify that you installed n98 under <project-root>/bin directory.'
-  exit 1
+if [ -d "${DDEV_APPROOT}/src" ]; then
+  BIN_DIR="${DDEV_APPROOT}/src/bin"
+else
+  BIN_DIR="${DDEV_APPROOT}/bin"
 fi
 
-php bin/n98 "$@"
+if [ ! -f "${BIN_DIR}/n98" ]; then
+  echo "n98 not found. Installing n98-magerun2 to ${BIN_DIR}/n98 ..."
+  mkdir -p "${BIN_DIR}"
+  wget -q https://files.magerun.net/n98-magerun2.phar -O "${BIN_DIR}/n98"
+  chmod +x "${BIN_DIR}/n98"
+  echo "n98 installed."
+fi
+
+php "${BIN_DIR}/n98" "$@"
