@@ -214,11 +214,11 @@ ddev module-report [flags]
 
 **Examples:**
 ```bash
-# Default report
+# Default report (automatically discovers newest stable Magento release)
 ddev module-report
 
-# Target a specific Magento version
-ddev module-report --target-magento=2.4.8-p3 --output=var/upgrade-2.4.8.csv
+# Target a specific Magento version explicitly
+ddev module-report --target-magento=2.4.7-p3 --output=var/upgrade-2.4.7.csv
 
 # Include child dependency modules
 ddev module-report --include-children

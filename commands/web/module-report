@@ -2,7 +2,7 @@
 #ddev-generated
 ## Description: Generate 3rd-party module compatibility report CSV
 ## Usage: module-report [flags]
-## Example: "ddev module-report" or "ddev module-report --target-magento=2.4.8-p3 --output=report.csv" or "ddev module-report --format=ai-prompt --verbose"
+## Example: "ddev module-report" or "ddev module-report --target-magento=2.4.7-p3 --output=report.csv" or "ddev module-report --format=ai-prompt --verbose"
 
 set -Eeuo pipefail
 
