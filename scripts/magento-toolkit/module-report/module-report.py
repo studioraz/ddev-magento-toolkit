@@ -9,7 +9,7 @@ Usage (inside ddev web container via `ddev module-report`):
     python3 .ddev/scripts/magento-toolkit/module-report/module-report.py [options]
 
 Options:
-    --target-magento=2.4.8-p3   Target Magento version (default: 2.4.8-p3)
+    --target-magento=2.4.8-p3   Target Magento version (default: newest stable Composer release)
     --target-php=8.3             Target PHP version (default: 8.3)
     --output=report.csv          Output CSV file (default: module-report.csv)
     --format=csv|ai-prompt       Output format (default: csv)
@@ -23,6 +23,7 @@ import csv
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -91,8 +92,8 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Generate Magento 2 3rd-party module compatibility report"
     )
-    parser.add_argument("--target-magento", default="2.4.8-p3",
-                        help="Target Magento version (default: 2.4.8-p3)")
+    parser.add_argument("--target-magento",
+                        help="Target Magento version (default: newest stable Composer release)")
     parser.add_argument("--target-php", default="8.3",
                         help="Target PHP version (default: 8.3)")
     parser.add_argument("--output", default="var/module-report.csv",
@@ -161,6 +162,14 @@ def load_composer_json(root):
 def load_composer_lock(root):
     with open(root / "composer.lock") as f:
         return json.load(f)
+
+
+def get_current_magento_version(lock_data):
+        """Return the installed Magento product version from composer.lock."""
+        for package in lock_data.get("packages", []):
+            if package.get("name") == "magento/product-community-edition":
+                return package.get("version", "")
+        return ""
 
 
 def load_config_php(root):
@@ -811,14 +820,31 @@ def fetch_packagist_versions(pkg_name, repo=None):
     return result
 
 
+def _composer_command():
+    """Return a Composer command that works inside DDEV, on host with DDEV, or directly in CI/agents."""
+    in_ddev = bool(os.environ.get("IS_DDEV_PROJECT") or os.environ.get("DDEV_SITENAME"))
+    if in_ddev or not shutil.which("ddev"):
+        return ["composer"]
+    try:
+        res = subprocess.run(["ddev", "describe", "-j"], capture_output=True, text=True, timeout=5)
+        if res.returncode == 0:
+            return ["ddev", "exec", "composer"]
+    except Exception:
+        pass
+    if shutil.which("composer"):
+        return ["composer"]
+    return ["ddev", "exec", "composer"]
+
+
 def fetch_composer_available(pkg_name):
     """
-    Fallback: use `ddev exec composer show {package} --available` to get versions.
+    Fallback: use `composer show {package} --available` to get versions.
     Returns: (latest_version_str, [list of versions]) or (None, [])
     """
     try:
+        cmd = _composer_command() + ["show", pkg_name, "--available", "--format=json"]
         result = subprocess.run(
-            ["ddev", "exec", "composer", "show", pkg_name, "--available", "--format=json"],
+            cmd,
             capture_output=True, text=True, timeout=30
         )
         if result.returncode != 0:
@@ -836,7 +862,7 @@ def fetch_composer_available(pkg_name):
 
 def fetch_all_latest_via_composer():
     """
-    Run `composer show --installed --latest --format=json` inside ddev ONCE
+    Run `composer show --installed --latest --format=json` inside ddev or CI ONCE
     to get installed + latest versions for ALL packages at once.
 
     Returns: {
@@ -846,15 +872,10 @@ def fetch_all_latest_via_composer():
             "latest-status": "up-to-date" | "semver-safe-update" | "update-possible"
         }
     }
-    or {} if ddev is not available.
+    or {} if composer is not available.
     """
     info("Fetching latest versions via `composer show --installed --latest`...")
-    # Detect if we're already inside a ddev container (DDEV_SITENAME or IS_DDEV_PROJECT is set)
-    in_ddev = bool(os.environ.get("IS_DDEV_PROJECT") or os.environ.get("DDEV_SITENAME"))
-    if in_ddev:
-        cmd = ["composer", "show", "--installed", "--latest", "--format=json"]
-    else:
-        cmd = ["ddev", "exec", "composer", "show", "--installed", "--latest", "--format=json"]
+    cmd = _composer_command() + ["show", "--installed", "--latest", "--format=json"]
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
@@ -883,6 +904,59 @@ def fetch_all_latest_via_composer():
         return {}
 
 
+def discover_latest_magento_version():
+    """
+    Discover the newest stable Magento product release from Composer metadata.
+
+    This intentionally uses `show --all` instead of the installed package's
+    constrained update information, so the result is not limited by the
+    current composer.json requirement.
+    """
+    package_name = "magento/product-community-edition"
+    info(f"Discovering latest stable {package_name} release via Composer...")
+    cmd = _composer_command() + ["show", package_name, "--all", "--format=json"]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("Composer timed out while discovering the latest Magento release.") from exc
+    except OSError as exc:
+        raise RuntimeError(f"Could not execute Composer to discover Magento releases: {exc}") from exc
+
+    if result.returncode != 0:
+        detail = result.stderr.strip().splitlines()
+        message = detail[-1] if detail else "unknown Composer error"
+        raise RuntimeError(
+            f"Could not discover Magento releases from Composer: {message}. "
+            "Use --target-magento explicitly or check repository credentials."
+        )
+
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Composer returned invalid JSON while discovering Magento releases.") from exc
+
+    versions = data.get("versions", [])
+    if not isinstance(versions, list):
+        versions = []
+
+    stable_versions = [
+        version.lstrip("v")
+        for version in versions
+        if isinstance(version, str)
+        and re.fullmatch(r"\d+\.\d+\.\d+(?:-p\d+)?", version.lstrip("v"))
+    ]
+    if not stable_versions:
+        raise RuntimeError(
+            "Composer returned no stable Magento releases. "
+            "Use --target-magento explicitly or check repository credentials."
+        )
+
+    latest = max(stable_versions, key=_version_tuple)
+    info(f"  Latest stable Magento release: {latest}")
+    return latest
+
+
 def _version_tuple(version_str):
     """Convert version string to tuple for sorting, e.g. '2.4.7-p8' → (2, 4, 7, 8)."""
     # Replace -p with . for sorting
@@ -896,6 +970,9 @@ def is_compatible_with_magento(pkg_require, target_magento):
     Check if a package version's require constraints are compatible with
     the target Magento version by checking magento/framework version requirement.
     """
+    if not isinstance(pkg_require, dict):
+        return False
+
     fw_constraint = pkg_require.get("magento/framework", "")
     if not fw_constraint:
         # No framework constraint = likely compatible
@@ -998,6 +1075,14 @@ def find_compatible_version(versions, target_magento):
         return None, None
 
     latest = versions[0]["version"]
+
+    # Ignore malformed metadata rather than aborting the complete report.
+    versions = [
+        version for version in versions
+        if isinstance(version, dict) and isinstance(version.get("require", {}), dict)
+    ]
+    if not versions:
+        return None, None
 
     # Check if ANY version constrains magento/framework
     has_framework_constraint = any(
@@ -1229,6 +1314,8 @@ def build_report(args, root):
                 compatible_ver = compat if compat is not None else ""
                 if not versions:
                     notes.append("check manually for compatibility")
+                elif compat == "":
+                    notes.append("no Magento framework constraint; check manually")
                 # Latest released from repo (for non-amasty; amasty uses feed above)
                 if repo_latest and vendor != "amasty":
                     latest_released = repo_latest
@@ -1259,8 +1346,8 @@ def build_report(args, root):
         # Already compatible: is current installed version >= minimum compatible version?
         if compatible_ver and compatible_ver not in ("—", "any (no constraint)") and installed_ver not in ("", "not-installed"):
             already_compat = "yes" if _version_tuple(installed_ver) >= _version_tuple(compatible_ver) else "no — upgrade needed"
-        elif compatible_ver == "any (no constraint)":
-            already_compat = "yes"
+        elif not args.no_api and compatible_ver == "":
+            already_compat = "manual review"
         else:
             already_compat = ""
 
@@ -1279,8 +1366,7 @@ def build_report(args, root):
             "Latest Released": latest_released,
             "Update Status": update_status,
             "Compatible Version": (
-                "any (no constraint)" if compatible_ver == "" and not args.no_api
-                else compatible_ver or ("—" if not args.no_api else "")
+                compatible_ver or ("—" if not args.no_api else "")
             ),
             "Already Compatible": already_compat,
             "Repository URL": module_url or source_url,
@@ -1434,6 +1520,10 @@ def _get_packagist_versions(pkg_name, cache):
 
 def get_columns(include_children):
     columns = [
+        "Current Magento",
+        "Target Magento",
+        "Target PHP",
+        "Target Source",
         "Module Name",
         "Vendor",
         "Composer Name",
@@ -1470,6 +1560,7 @@ def write_ai_prompt(rows, output_path, target_magento, target_php, columns):
         f"# Magento Module Compatibility Analysis Request",
         f"",
         f"I am upgrading a Magento 2 project from its current version to **{target_magento}** (PHP {target_php}).",
+        f"The report target was selected from: **{rows[0].get('Target Source', 'explicit CLI argument') if rows else 'explicit CLI argument'}**.",
         f"Please analyze the following third-party modules and for each one that does NOT have a",
         f"'Compatible Version' filled in, tell me:",
         f"1. Whether the module supports Magento {target_magento} / PHP {target_php}",
@@ -1506,13 +1597,36 @@ def main():
     args = parse_args()
     _verbose = args.verbose
 
-    info(f"Magento Module Compatibility Reporter")
-    info(f"Target: Magento {args.target_magento} / PHP {args.target_php}")
-
     root = find_project_root()
     info(f"Project root: {root}")
+    lock_data = load_composer_lock(root)
+    current_magento = get_current_magento_version(lock_data)
+    if not current_magento:
+        raise RuntimeError(
+            "Could not find magento/product-community-edition in composer.lock."
+        )
+
+    if args.target_magento:
+        target_source = "explicit --target-magento"
+    elif args.no_api:
+        raise RuntimeError(
+            "--no-api cannot discover the latest Magento release. "
+            "Pass --target-magento explicitly."
+        )
+    else:
+        args.target_magento = discover_latest_magento_version()
+        target_source = "Magento Composer repository via composer show --all"
+
+    info(f"Magento Module Compatibility Reporter")
+    info(f"Current: Magento {current_magento}")
+    info(f"Target: Magento {args.target_magento} / PHP {args.target_php}")
 
     rows = build_report(args, root)
+    for row in rows:
+        row["Current Magento"] = current_magento
+        row["Target Magento"] = args.target_magento
+        row["Target PHP"] = args.target_php
+        row["Target Source"] = target_source
     columns = get_columns(args.include_children)
 
     info(f"Total packages processed: {len(rows)}")
@@ -1540,7 +1654,9 @@ def main():
     no_compat    = sum(1 for r in vendor_rows if r["Compatible Version"] == "—")
 
     print(f"\n{'='*60}")
-    print(f"  Module Report Summary  (target: Magento {args.target_magento})")
+    print(f"  Module Report Summary  (current: Magento {current_magento})")
+    print(f"  Target:                Magento {args.target_magento} / PHP {args.target_php}")
+    print(f"  Target source:         {target_source}")
     print(f"{'='*60}")
     print(f"  Total:                 {len(rows)}  (vendor: {len(vendor_rows)}, app/code: {len(local_rows)})")
     print(f"  Parents (vendor):      {parents}")
