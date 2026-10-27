@@ -30,7 +30,7 @@ ddev add-on get studioraz/ddev-magento-toolkit
 
 This will:
 1. Install the required dependencies (Redis RabbitMQ and OpenSearch)
-2. Copy custom commands to your project's `.ddev/commands/web/` directory
+2. Copy custom commands to your project's `.ddev/commands/web/` and `.ddev/commands/host/` directories
 3. Set up configuration hooks in `.ddev/config.magento.hooks.yaml`
 4. Download and install n98-magerun2 to your project's `bin/` directory
 5. Make all scripts executable
@@ -135,6 +135,73 @@ ddev generate-env --dry-run
 - Magento mode (customizable via `MAGE_MODE` environment variable)
 - Secure base URLs for your DDEV site
 - Encryption key (preserved from existing env.php or generated)
+
+### `ddev install-mageos`
+
+Install a fresh MageOS codebase into a clean DDEV project, run the initial Magento installer, and then regenerate `env.php` with this add-on's DDEV defaults.
+
+**Quick Start — install MageOS from scratch:**
+
+1. Create and enter a new project directory:
+   ```bash
+   mkdir my-shop && cd my-shop
+   ```
+2. Initialise DDEV for Magento 2:
+   ```bash
+   ddev config --project-type=magento2 --disable-settings-management
+   ```
+3. Install this add-on (pulls Redis, OpenSearch, and RabbitMQ automatically):
+   ```bash
+   ddev add-on get studioraz/ddev-magento-toolkit
+   ```
+4. Start the DDEV environment:
+   ```bash
+   ddev start
+   ```
+5. Run the installer (takes ~10 minutes — DDEV restarts automatically when done):
+   ```bash
+   ddev install-mageos
+   ```
+6. Open the site in your browser:
+   ```bash
+   ddev launch
+   ```
+
+**Usage:**
+```bash
+ddev install-mageos [flags]
+```
+
+**Examples:**
+```bash
+# Install the latest MageOS release
+ddev install-mageos
+
+# Install a specific MageOS version and customize the storefront/admin paths
+ddev install-mageos \
+  --mageos-version=1.0.2 \
+  --base-url=https://my-shop.ddev.site/ \
+  --backend-frontname=backend
+```
+
+**Flags:**
+- `--mageos-version=<version>` - Optional version passed to `composer create-project`
+- `--base-url=<url>` - Storefront URL used during `setup:install` (defaults to `https://<project>.ddev.site/`)
+- `--backend-frontname=<path>` - Admin URI (default: `admin`)
+- `--admin-user=<username>` - Admin username (default: `studioraz`)
+- `--admin-password=<password>` - Admin password (default: `qwaszx1234$`)
+- `--admin-firstname=<name>` - Admin first name (default: `Studio`)
+- `--admin-lastname=<name>` - Admin last name (default: `Raz`)
+- `--admin-email=<email>` - Admin email (default: `admin@example.com`)
+- `--language=<locale>` - Store locale (default: `en_US`)
+- `--currency=<code>` - Store currency (default: `USD`)
+- `--timezone=<timezone>` - Store timezone (default: `UTC`)
+- `--force` - Allow installation even if the project root already contains files besides DDEV scaffolding
+
+**Notes:**
+- Run this from a clean DDEV project root after installing the add-on.
+- The command scaffolds `mageos/project-community-edition` from `https://repo.mage-os.org/`.
+- After `setup:install`, it runs `ddev generate-env --force` so Redis, RabbitMQ, and OpenSearch are wired up with this toolkit's defaults.
 
 ### `ddev module-report`
 
@@ -245,6 +312,28 @@ ddev import-db --src=database.sql.gz
 # Default Password: qwaszx1234$ (⚠️ CHANGE IMMEDIATELY - for local dev only!)
 ```
 
+### Creating a Brand-New MageOS Project
+
+```bash
+# 1. Create and enter the project directory
+mkdir my-shop && cd my-shop
+
+# 2. Initialise DDEV for Magento 2
+ddev config --project-type=magento2 --disable-settings-management
+
+# 3. Install this add-on (auto-installs Redis, OpenSearch, RabbitMQ)
+ddev add-on get studioraz/ddev-magento-toolkit
+
+# 4. Start the environment
+ddev start
+
+# 5. Scaffold MageOS and run the Magento installer (~10 min)
+ddev install-mageos
+
+# 6. Open the site (DDEV restarts automatically before this)
+ddev launch
+```
+
 ### Working with an Existing Project
 
 ```bash
@@ -300,22 +389,22 @@ After installation, the toolkit adds the following files to your `.ddev` directo
 ```
 .ddev/
 ├── commands/
+│   ├── host/
+│   │   └── install-mageos          # Fresh MageOS installer
 │   └── web/
-│       ├── dep                      # Deployer command
-│       ├── n98                      # n98-magerun2 command
-│       ├── generate-env             # Environment generator command
-│       └── module-report            # Module compatibility report command
+│       ├── dep                     # Deployer command
+│       ├── n98                     # n98-magerun2 command
+│       ├── generate-env            # Environment generator command
+│       └── module-report           # Module compatibility report command
 ├── scripts/
 │   └── magento-toolkit/
 │       ├── module-report/
 │       │   └── module-report.py     # Shared module report generator
-│       └── n98-magerun/
-│           ├── install.sh           # n98-magerun2 installer
-│           └── uninstall.sh         # Cleanup script
+│       └── uninstall.sh             # Cleanup script
 └── config.magento.hooks.yaml        # Post-import and post-start hooks
 ```
 
-The n98-magerun2 tool is installed to:
+The n98-magerun2 tool is downloaded automatically on first `ddev n98` invocation to:
 - `bin/n98` (standard Magento structure)
 - `src/bin/n98` (if your project has a `src/` directory)
 
@@ -323,12 +412,12 @@ The n98-magerun2 tool is installed to:
 
 ### n98 command fails
 
-**Error:** `bin/n98 does not exist`
+**Error:** `n98 not found. Installing n98-magerun2 …` hangs or fails
 
 **Solution:**
 ```bash
-# Reinstall n98-magerun2
-ddev exec .ddev/scripts/magento-toolkit/n98-magerun/install.sh
+# Retry – n98 is downloaded automatically on first use
+ddev n98 list
 ```
 
 ### dep command fails
@@ -452,6 +541,39 @@ If you encounter any problems:
 6. Commit with clear messages: `git commit -m "Add: description of changes"`
 7. Push to your fork: `git push origin feature/your-feature-name`
 8. Open a Pull Request
+
+### Running the Test Suite
+
+The addon ships with a [Bats](https://bats-core.readthedocs.io/) (Bash Automated Testing System) test suite located in `tests/test.bats`.
+
+**Prerequisites:**
+
+```bash
+# Install bats-core
+brew install bats-core
+
+# Clone the required helper libraries
+mkdir -p /tmp/bats-libs
+git clone https://github.com/bats-core/bats-support /tmp/bats-libs/bats-support
+git clone https://github.com/bats-core/bats-assert  /tmp/bats-libs/bats-assert
+```
+
+**Run the tests:**
+
+```bash
+BATS_LIB_PATH=/tmp/bats-libs bats ./tests/test.bats --filter-tags '!release' --timing
+```
+
+The `--filter-tags '!release'` flag skips the release-install test (which requires a published GitHub tag) so the full suite can run against your local working copy.
+
+**What the tests cover:**
+- Addon file deployment from a local directory
+- n98-magerun2 lazy installation on first `ddev n98` invocation
+- n98-magerun2 not re-downloaded on subsequent invocations
+- `ddev generate-env --dry-run` output
+- `ddev generate-env` writes `app/etc/env.php`
+- `ddev generate-env` does not overwrite an existing file without `--force`
+- `ddev generate-env --force` overwrites an existing file
 
 ### Development Guidelines
 

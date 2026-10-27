@@ -15,11 +15,10 @@ All files in `project_files` (see `install.yaml`) are copied into the target pro
 | `install.yaml` | DDEV add-on manifest – declares `project_files`, `dependencies`, `post_install_actions`, `removal_actions` |
 | `config.magento.hooks.yaml` | DDEV lifecycle hooks (`post-import-db`, `post-start`) copied to target project |
 | `commands/web/generate-env` | Bash script that writes `app/etc/env.php` from inside the DDEV web container |
-| `commands/web/n98` | Thin wrapper: runs `php bin/n98 "$@"` inside the container |
+| `commands/web/n98` | Lazy-installs `n98-magerun2.phar` on first use, then runs `php <bindir>/n98 "$@"` inside the container |
 | `commands/web/dep` | Thin wrapper: runs `php ~/.composer/vendor/bin/dep "$@"` (global Composer install, not `vendor/bin/`) |
 | `commands/web/module-report` | Wrapper that runs the shared Python compatibility report shipped by this add-on |
 | `scripts/magento-toolkit/module-report/module-report.py` | Shared Magento module compatibility report generator copied into each project's `.ddev/scripts/` |
-| `scripts/magento-toolkit/n98-magerun/install.sh` | Downloads `n98-magerun2.phar` from `files.magerun.net` into `bin/n98` (or `src/bin/n98`) |
 
 ---
 
@@ -48,11 +47,9 @@ All files in `project_files` (see `install.yaml`) are copied into the target pro
 ---
 
 ## n98 Install Path Logic
-`install.sh` checks for a `src/` directory at `$DDEV_APPROOT`:
-- If present → installs to `src/bin/n98`
+`commands/web/n98` lazy-installs n98 on first invocation:
+- If `$DDEV_APPROOT/src` exists → installs to `src/bin/n98`
 - Otherwise → installs to `bin/n98`
-
-The `commands/web/n98` wrapper always looks for `bin/n98` (relative to the web root inside the container).
 
 ---
 

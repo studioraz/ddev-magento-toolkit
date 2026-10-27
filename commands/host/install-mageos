@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+# ddev-generated
+## Description: Full MageOS install from scratch (composer create-project + setup:install)
+## Usage: mageos-install
+
+set -Eeuo pipefail
+
+# ---------------------------------------------------------------------------
+# Guard: abort if already installed
+# ---------------------------------------------------------------------------
+if [[ -f "$DDEV_APPROOT/vendor/autoload.php" ]]; then
+  echo "────────────────────────────────────────────────────────"
+  echo " MageOS appears to be already installed."
+  echo "────────────────────────────────────────────────────────"
+  #exit 1
+fi
+
+HOSTNAME="${DDEV_PROJECT}.ddev.site"
+
+echo "════════════════════════════════════════════════════════"
+echo " MageOS Full Install — DDEV project: ${DDEV_PROJECT}"
+echo "════════════════════════════════════════════════════════"
+
+# ---------------------------------------------------------------------------
+# Step 1: Composer create-project
+# ---------------------------------------------------------------------------
+echo ""
+echo "▶ Step 1/6 — composer create-project"
+echo "────────────────────────────────────"
+
+ddev composer create-project --repository-url=https://repo.mage-os.org/ mage-os/project-community-edition
+rm -f app/etc/env.php
+# ---------------------------------------------------------------------------
+# Step 2: Magento setup:install
+# ---------------------------------------------------------------------------
+echo ""
+echo "▶ Step 2/6 — bin/magento setup:install"
+echo "────────────────────────────────────────"
+
+
+ddev  magento setup:install \
+  --base-url="https://${HOSTNAME}//" \
+  --db-host="db" \
+  --db-name="db" \
+  --db-user="db" \
+  --db-password="db" \
+  --cleanup-database \
+  --search-engine="opensearch" \
+  --opensearch-host="ddev-${DDEV_PROJECT}-opensearch" \
+  --opensearch-port="9200" \
+  --admin-firstname="Studio" \
+  --admin-lastname="Raz" \
+  --admin-email="dev@studioraz.co.il" \
+  --admin-user="studioraz" \
+  --admin-password="qwaszx1234$" \
+  --backend-frontname="admin" \
+  --language="en_US" \
+  --currency="ILS" \
+  --timezone="Asia/Jerusalem" \
+  --use-rewrites=1 \
+  --session-save=redis \
+  --session-save-redis-host="redis" \
+  --session-save-redis-log-level=1 \
+  --session-save-redis-db=3 \
+  --page-cache=redis \
+  --page-cache-redis-server="redis" \
+  --page-cache-redis-port=6379 \
+  --page-cache-redis-db=1 \
+  --page-cache-redis-compress-data=1 \
+  --page-cache-redis-compression-lib=gzip \
+  --cache-backend=redis \
+  --cache-backend-redis-server="redis" \
+  --cache-backend-redis-port=6379 \
+  --cache-backend-redis-db=0 \
+  --cache-backend-redis-use-lua=0
+
+# ---------------------------------------------------------------------------
+# Step 3: Disable 2FA (dev convenience)
+# ---------------------------------------------------------------------------
+echo ""
+echo "▶ Step 3/6 — Disable 2FA"
+echo "─────────────────────────"
+
+ddev exec bin/magento module:disable Magento_TwoFactorAuth 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
+# Step 4: Developer mode
+# ---------------------------------------------------------------------------
+echo ""
+echo "▶ Step 4/6 — Set developer mode"
+echo "─────────────────────────────────"
+
+ddev exec bin/magento deploy:mode:set developer
+
+# ---------------------------------------------------------------------------
+# Step 5: Reindex
+# ---------------------------------------------------------------------------
+echo ""
+echo "▶ Step 5/6 — Reindex"
+echo "──────────────────────"
+
+ddev exec bin/magento indexer:reindex
+
+# ---------------------------------------------------------------------------
+# Step 6: Cache flush
+# ---------------------------------------------------------------------------
+echo ""
+echo "▶ Step 6/6 — Flush cache"
+echo "──────────────────────────"
+
+ddev exec bin/magento cache:flush
+
+echo ""
+echo "▶ Finalizing DDEV configuration"
+echo "──────────────────────────────"
+ddev config --docroot=pub --upload-dirs=media
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+echo ""
+echo "════════════════════════════════════════════════════════"
+echo " ✅ MageOS installation complete!"
+echo "════════════════════════════════════════════════════════"
+echo " Site URL   : https://${HOSTNAME}/"
+echo " Admin URL  : https://${HOSTNAME}/admin"
+echo " Admin user : studioraz"
+echo " Admin pass : qwaszx1234"
+echo "════════════════════════════════════════════════════════"
+
+echo ""
+echo "Restart DDEV to apply new configuration"
+ddev restart
